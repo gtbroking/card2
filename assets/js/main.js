@@ -409,7 +409,57 @@ function updateCartDisplay() {
         cartCount.textContent = totalItems;
         cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
     }
+    
+    // Update mobile cart visibility
+    const floatingCart = document.getElementById('floatingCart');
+    if (floatingCart && window.innerWidth <= 768) {
+        floatingCart.style.display = totalItems > 0 ? 'flex' : 'none';
+    }
 }
+
+// Enhanced mobile cart positioning
+function adjustMobileCart() {
+    const floatingCart = document.getElementById('floatingCart');
+    const floatingInquiry = document.getElementById('floatingInquiry');
+    
+    if (window.innerWidth <= 768) {
+        if (floatingCart) {
+            floatingCart.style.position = 'fixed';
+            floatingCart.style.bottom = '80px';
+            floatingCart.style.right = '15px';
+            floatingCart.style.top = 'auto';
+            floatingCart.style.transform = 'none';
+        }
+        
+        if (floatingInquiry) {
+            floatingInquiry.style.position = 'fixed';
+            floatingInquiry.style.bottom = '140px';
+            floatingInquiry.style.right = '15px';
+            floatingInquiry.style.top = 'auto';
+            floatingInquiry.style.transform = 'none';
+        }
+    } else {
+        if (floatingCart) {
+            floatingCart.style.position = 'fixed';
+            floatingCart.style.top = '50%';
+            floatingCart.style.right = '20px';
+            floatingCart.style.bottom = 'auto';
+            floatingCart.style.transform = 'translateY(-50%)';
+        }
+        
+        if (floatingInquiry) {
+            floatingInquiry.style.position = 'fixed';
+            floatingInquiry.style.top = 'calc(50% + 80px)';
+            floatingInquiry.style.right = '20px';
+            floatingInquiry.style.bottom = 'auto';
+            floatingInquiry.style.transform = 'none';
+        }
+    }
+}
+
+// Call on window resize
+window.addEventListener('resize', adjustMobileCart);
+window.addEventListener('load', adjustMobileCart);
 
 function toggleCart() {
     const cartModal = document.getElementById('cartModal');
@@ -478,19 +528,25 @@ function showUPIModal() {
     
     // Generate UPI QR Code
     const upiId = document.getElementById('upiId').textContent;
-    const upiString = `upi://pay?pa=${upiId}&pn=DEMO CARD&am=${total}&cu=INR`;
+    const upiString = `upi://pay?pa=${upiId}&pn=DEMO CARD&am=${total}&cu=INR&tn=Order Payment`;
     
     // Clear previous QR code
     upiQRCode.innerHTML = '';
     
-    // Generate new QR code
-    QRCode(upiQRCode, {
-        text: upiString,
-        width: 200,
-        height: 200,
-        colorDark: "#000000",
-        colorLight: "#ffffff"
-    });
+    // Generate new QR code using QRCode.js
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(upiQRCode, {
+            text: upiString,
+            width: 200,
+            height: 200,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    } else {
+        // Fallback QR code generation
+        upiQRCode.innerHTML = `<div style="width: 200px; height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 10px;">QR Code<br>Generated</div>`;
+    }
     
     upiModal.classList.add('active');
 }
@@ -503,7 +559,7 @@ function closeUPIModal() {
 function openUPIApp() {
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const upiId = document.getElementById('upiId').textContent;
-    const upiString = `upi://pay?pa=${upiId}&pn=DEMO CARD&am=${total}&cu=INR`;
+    const upiString = `upi://pay?pa=${upiId}&pn=DEMO CARD&am=${total}&cu=INR&tn=Order Payment`;
     
     // Try to open UPI app
     window.location.href = upiString;
@@ -518,15 +574,61 @@ function confirmPayment() {
     // Close UPI modal first
     closeUPIModal();
     
-    // Show registration form if user not logged in
-    if (!isUserLoggedIn()) {
-        showMessage('Please register to confirm your order', 'info');
-        showRegisterForm();
-    } else {
-        // Save order to database
-        saveOrder();
-        showMessage('Payment confirmed! Order saved successfully.', 'success');
-    }
+    // Show 5-minute timer and registration prompt
+    showPaymentTimer();
+}
+
+function showPaymentTimer() {
+    const timerModal = document.createElement('div');
+    timerModal.className = 'payment-timer-modal';
+    timerModal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+    `;
+    
+    let timeLeft = 300; // 5 minutes in seconds
+    
+    timerModal.innerHTML = `
+        <div style="background: var(--card-bg); border-radius: 20px; padding: 30px; text-align: center; max-width: 400px; width: 100%;">
+            <h3 style="margin-bottom: 20px; color: var(--text-color);">Payment Confirmation</h3>
+            <div style="font-size: 48px; font-weight: bold; color: var(--accent-color); margin: 20px 0;" id="timerDisplay">5:00</div>
+            <p style="margin-bottom: 20px; color: var(--text-secondary);">Please complete your payment within the time limit and register to save your order history.</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button onclick="showRegisterForm(); document.body.removeChild(this.closest('.payment-timer-modal'))" 
+                        style="background: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 25px; cursor: pointer; font-weight: 600;">
+                    Register Now
+                </button>
+                <button onclick="document.body.removeChild(this.closest('.payment-timer-modal'))" 
+                        style="background: var(--secondary-color); color: white; border: none; padding: 12px 20px; border-radius: 25px; cursor: pointer; font-weight: 600;">
+                    Skip
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(timerModal);
+    
+    const timerInterval = setInterval(() => {
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        document.getElementById('timerDisplay').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            document.body.removeChild(timerModal);
+            showMessage('Payment time expired. Please try again.', 'error');
+        }
+    }, 1000);
 }
 
 function saveOrder() {
@@ -822,6 +924,10 @@ function submitReview(event) {
             showMessage('Review submitted successfully! It will be visible after approval.', 'success');
             event.target.reset();
             setRating(0);
+            // Reset stars display
+            document.querySelectorAll('.stars-input i').forEach(star => {
+                star.classList.remove('active');
+            });
         } else {
             showMessage(data.message || 'Error submitting review', 'error');
         }

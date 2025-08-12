@@ -111,6 +111,104 @@ $currentDomain = getCurrentDomain();
             font-family: 'Inter', sans-serif;
         }
         
+        /* Sticky Banner */
+        .sticky-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            color: white;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            overflow: hidden;
+        }
+        
+        .scrolling-text {
+            animation: scroll-left 15s linear infinite;
+            white-space: nowrap;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        @keyframes scroll-left {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        .close-sticky-banner {
+            position: absolute;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        /* Inquiry Section */
+        .inquiry-section {
+            margin: 30px 0;
+            text-align: center;
+            padding: 30px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .inquiry-section h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .inquiry-images {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .inquiry-image-item {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .inquiry-image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .inquiry-now-btn {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto;
+        }
+        
+        .inquiry-now-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+        
         /* Fixed banner sizes for mobile */
         .banner-container {
             height: 150px;
@@ -120,11 +218,19 @@ $currentDomain = getCurrentDomain();
             .banner-container {
                 height: 120px;
             }
+            
+            .inquiry-images {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
         
         @media (max-width: 480px) {
             .banner-container {
                 height: 100px;
+            }
+            
+            .scrolling-text {
+                font-size: 12px;
             }
         }
         
@@ -265,9 +371,19 @@ $currentDomain = getCurrentDomain();
             </div>
         </div>
     </div>
+    
+    <!-- Sticky Top Banner with Scrolling Text -->
+    <div class="sticky-banner" id="stickyBanner">
+        <div class="scrolling-text">
+            <span><?php echo htmlspecialchars($settings['discount_text'] ?? 'DISCOUNT UPTO 50% Live Use FREE code'); ?></span>
+        </div>
+        <button class="close-sticky-banner" onclick="closeStickyBanner()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
 
     <!-- Auto-scrolling Top Banner -->
-    <div class="banner-container" id="topBanner">
+    <div class="banner-container" id="topBanner" style="margin-top: 50px;">
         <div class="banner-slider">
             <?php foreach ($banners as $banner): ?>
                 <div class="banner-slide">
@@ -290,8 +406,8 @@ $currentDomain = getCurrentDomain();
             <!-- Logo -->
             <div class="logo-container">
                 <div class="logo">
-                    <?php if (!empty($settings['logo_url'])): ?>
-                        <img src="<?php echo htmlspecialchars($settings['logo_url']); ?>" alt="Logo">
+                    <?php if (!empty($settings['director_image_url'])): ?>
+                        <img src="<?php echo htmlspecialchars($settings['director_image_url']); ?>" alt="Director Photo">
                     <?php else: ?>
                         <div class="logo-placeholder">🏢</div>
                     <?php endif; ?>
@@ -334,6 +450,23 @@ $currentDomain = getCurrentDomain();
                 <button class="free-website-btn" onclick="showFreeWebsiteForm()">
                     <i class="fas fa-gift"></i>
                     <span>GET YOUR BUSINESS WEBSITE FREE</span>
+                </button>
+            </div>
+            
+            <!-- Inquiry Section -->
+            <div class="inquiry-section">
+                <h3>Product Inquiries</h3>
+                <div class="inquiry-images">
+                    <?php foreach (array_slice($products, 0, 4) as $product): ?>
+                        <div class="inquiry-image-item">
+                            <img src="<?php echo htmlspecialchars($product['image_url']); ?>" 
+                                 alt="<?php echo htmlspecialchars($product['title']); ?>">
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <button class="inquiry-now-btn" onclick="openWhatsApp('<?php echo $settings['whatsapp_number']; ?>', 'Hi! I would like to inquire about your products.')">
+                    <i class="fab fa-whatsapp"></i>
+                    INQUIRE NOW
                 </button>
             </div>
 
@@ -795,7 +928,7 @@ $currentDomain = getCurrentDomain();
                 <div class="dashboard-content">
                     <div id="profileTab" class="tab-content active">
                         <!-- Profile content will be loaded here -->
-                    </div>
+            <form id="reviewForm" onsubmit="submitReview(event)" method="POST">
                     <div id="ordersTab" class="tab-content">
                         <!-- Orders content will be loaded here -->
                     </div>
@@ -841,6 +974,12 @@ $currentDomain = getCurrentDomain();
         <?php if (($settings['show_pwa_prompt'] ?? '1') === '1'): ?>
         setTimeout(showPWAPrompt, 5000);
         <?php endif; ?>
+        
+        // Close sticky banner function
+        function closeStickyBanner() {
+            document.getElementById('stickyBanner').style.display = 'none';
+            document.getElementById('topBanner').style.marginTop = '0';
+        }
     </script>
 </body>
 </html>
